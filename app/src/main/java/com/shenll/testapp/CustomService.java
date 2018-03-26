@@ -1,12 +1,15 @@
 package com.shenll.testapp;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.NotificationManagerCompat;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -15,21 +18,15 @@ public class CustomService extends Service {
     public static int NOTIFICATION_LIVE_TIME = 1 * 60 * 1000; // 1 min
     public static boolean IS_SERVICE_RUNNING = false;
     public static boolean IS_SERVICE_FINISHED = false;
-    NotificationManagerCompat notificationManagerCompat;
+    String NOTIFICATION_CHANNEL_ID = "TestApp";
+    NotificationManager notificationManager;
 
     @Override
     public void onCreate() {
+        IS_SERVICE_RUNNING = true;
+        notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        showNotification();
         super.onCreate();
-        notificationManagerCompat = NotificationManagerCompat.from(getApplicationContext());
-    }
-
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent.getAction().equals(Constants.ACTION.START)) {
-            showNotification();
-            IS_SERVICE_RUNNING = true;
-        }
-        return START_STICKY;
     }
 
     private void showNotification() {
@@ -39,15 +36,21 @@ public class CustomService extends Service {
                 | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
                 notificationIntent, 0);
-        NotificationCompat.Builder notification = new NotificationCompat.Builder(this, "TestApp")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel notificationChannel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, "TestApp", NotificationManager.IMPORTANCE_DEFAULT);
+            notificationManager.createNotificationChannel(notificationChannel);
+        }
+
+
+        NotificationCompat.Builder notification = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
                 .setContentTitle("Operr Driver")
                 .setContentText("You are on the break")
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_comment)
                 .setContentIntent(pendingIntent)
-                .setOngoing(true);
+                .setOngoing(true)
+                .setChannelId(NOTIFICATION_CHANNEL_ID);
         startForeground(Constants.NOTIFICATION_ID,
                 notification.build());
-        notificationManagerCompat.notify("Notification", Constants.NOTIFICATION_ID, notification.build());
         startTimerAndStopServiceWhenFinished(notification);
     }
 
@@ -56,7 +59,7 @@ public class CustomService extends Service {
         TimerTask timerTask = new TimerTask() {
             public void run() {
                 notification.setSubText("Time left: " + (initTime - System.currentTimeMillis()) / 1000);
-                notificationManagerCompat.notify("Notification", Constants.NOTIFICATION_ID, notification.build());
+                notificationManager.notify("Notification", Constants.NOTIFICATION_ID, notification.build());
             }
         };
 
@@ -66,7 +69,7 @@ public class CustomService extends Service {
             public void run() {
                 notification.setSubText("Finished");
                 notification.setOngoing(false);
-                notificationManagerCompat.notify("Notification", Constants.NOTIFICATION_ID, notification.build());
+                notificationManager.notify("Notification", Constants.NOTIFICATION_ID, notification.build());
                 stopForeground(true);
                 stopSelf();
                 timer.cancel();
@@ -81,6 +84,7 @@ public class CustomService extends Service {
 
     @Override
     public void onDestroy() {
+        IS_SERVICE_RUNNING = false;
         super.onDestroy();
     }
 

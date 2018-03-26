@@ -6,5 +6,5 @@ public class Constants {
         String START = "startforeground";
     }
 
-    public static int NOTIFICATION_ID = 0;
+    public static int NOTIFICATION_ID = 12345678;
 }
