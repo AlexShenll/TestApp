@@ -17,9 +17,9 @@ import java.util.TimerTask;
 
 public class CustomService extends Service {
     //Total time the service is kept alive
-    public static int SERVICE_LIFE_TIME = 1 * 60 * 1000; // 5 min
+    public static int SERVICE_LIFE_TIME = 5 * 60 * 1000; // 5 min
     //Used to count remaining time
-    public static int NOTIFICATION_REMAINING_SEC = 1 * 60; // 5 min
+    public static int NOTIFICATION_REMAINING_SEC = 5 * 60; // 5 min
     public static boolean IS_SERVICE_RUNNING = false;
     String NOTIFICATION_CHANNEL_ID = "TestApp";
     NotificationManagerCompat notificationManager;

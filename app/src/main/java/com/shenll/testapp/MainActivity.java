@@ -14,6 +14,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         TextView env = findViewById(R.id.env);
+        //Display current environment
         env.setText(BuildConfig.environment);
         //Try to start foreground service when ever activity is created
         startForeGroundService();
