@@ -4,27 +4,33 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
-import android.support.v4.app.NotificationCompat;
+
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 
 import java.util.Timer;
 import java.util.TimerTask;
 
 public class CustomService extends Service {
-    public static int NOTIFICATION_LIVE_TIME = 1 * 60 * 1000; // 1 min
+    //Total time the service is kept alive
+    public static int SERVICE_LIFE_TIME = 1 * 60 * 1000; // 5 min
+    //Used to count remaining time
+    public static int NOTIFICATION_REMAINING_SEC = 1 * 60; // 5 min
     public static boolean IS_SERVICE_RUNNING = false;
-    public static boolean IS_SERVICE_FINISHED = false;
     String NOTIFICATION_CHANNEL_ID = "TestApp";
-    NotificationManager notificationManager;
+    NotificationManagerCompat notificationManager;
 
     @Override
     public void onCreate() {
-        IS_SERVICE_RUNNING = true;
-        notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationManager = NotificationManagerCompat.from(getApplicationContext());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel notificationChannel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, "TestApp", NotificationManager.IMPORTANCE_DEFAULT);
+            notificationManager.createNotificationChannel(notificationChannel);
+        }
         showNotification();
         super.onCreate();
     }
@@ -34,58 +40,47 @@ public class CustomService extends Service {
         notificationIntent.setAction(Constants.ACTION.START);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        //Open MainActivity on opening the notification
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
                 notificationIntent, 0);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel notificationChannel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, "TestApp", NotificationManager.IMPORTANCE_DEFAULT);
-            notificationManager.createNotificationChannel(notificationChannel);
-        }
-
 
         NotificationCompat.Builder notification = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
                 .setContentTitle("Operr Driver")
-                .setContentText("You are on the break")
+                .setContentText("You are on a break")
                 .setSmallIcon(R.drawable.ic_comment)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
+                .setOnlyAlertOnce(true)
                 .setChannelId(NOTIFICATION_CHANNEL_ID);
-        startForeground(Constants.NOTIFICATION_ID,
-                notification.build());
+        startForeground(Constants.NOTIFICATION_ID, notification.build());
         startTimerAndStopServiceWhenFinished(notification);
     }
 
     private void startTimerAndStopServiceWhenFinished(final NotificationCompat.Builder notification) {
-        final long initTime = System.currentTimeMillis() + NOTIFICATION_LIVE_TIME;
+        //A TIMER TASK updates the notification every 1 sec about the time remaining.
         TimerTask timerTask = new TimerTask() {
             public void run() {
-                notification.setSubText("Time left: " + (initTime - System.currentTimeMillis()) / 1000);
-                notificationManager.notify("Notification", Constants.NOTIFICATION_ID, notification.build());
+                long totalRemainingSeconds = NOTIFICATION_REMAINING_SEC--;
+                long mins = totalRemainingSeconds / 60;
+                long secs = totalRemainingSeconds - mins * 60;
+                notification.setSubText(String.format("Time left: %02d:%02d", mins, secs));
+                notificationManager.notify(Constants.NOTIFICATION_ID, notification.build());
             }
         };
 
         final Timer timer = new Timer();
         final Handler handler = new Handler();
-        Runnable runnable = new Runnable() {
+        // The Service is stopped after specified time
+        // AND mark the service finished
+        handler.postDelayed(new Runnable() {
             public void run() {
-                notification.setSubText("Finished");
-                notification.setOngoing(false);
-                notificationManager.notify("Notification", Constants.NOTIFICATION_ID, notification.build());
                 stopForeground(true);
                 stopSelf();
                 timer.cancel();
                 IS_SERVICE_RUNNING = false;
-                IS_SERVICE_FINISHED = true;
             }
-        };
-
-        handler.postDelayed(runnable, NOTIFICATION_LIVE_TIME);
+        }, SERVICE_LIFE_TIME);
         timer.schedule(timerTask, 0, 1000); // update every second
-    }
-
-    @Override
-    public void onDestroy() {
-        IS_SERVICE_RUNNING = false;
-        super.onDestroy();
     }
 
     @Override
